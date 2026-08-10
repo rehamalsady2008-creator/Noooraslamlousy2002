@@ -25,10 +25,28 @@ jobs:
       - name: Build Web Project
         run: bun run build
 
-      - name: Prepare Capacitor Config & Platform
+      - name: Configure Capacitor & Add iOS
         run: |
-          npx --yes @capacitor/cli init "MyStore" "com.mystore.app" --web-dir dist
-          npm install @capacitor/core @capacitor/ios
+          # تحديد مجلد البناء المتاح أو إنشاؤه
+          WEB_DIR="dist"
+          if [ -d "out" ]; then WEB_DIR="out"; fi
+          if [ -d "build" ]; then WEB_DIR="build"; fi
+          mkdir -p $WEB_DIR
+
+          # تثبيت الحزم المطلوبة
+          bun add @capacitor/core @capacitor/cli @capacitor/ios
+
+          # إنشاء ملف التهيئة مباشرة لتجنب أسئلة الـ CLI
+          cat <<EOF > capacitor.config.json
+          {
+            "appId": "com.mystore.app",
+            "appName": "MyStore",
+            "webDir": "$WEB_DIR",
+            "bundledWebRuntime": false
+          }
+          EOF
+
+          # إضافة منصة iOS والمزامنة
           npx cap add ios || true
           npx cap sync ios
 
