@@ -25,14 +25,11 @@ jobs:
       - name: Build Web Project
         run: bun run build
 
-      - name: Setup Capacitor & iOS Platform
+      - name: Setup Capacitor
         run: |
-          bun add @capacitor/core @capacitor/cli @capacitor/ios
-          # إنشاء مجلد dist تحسباً إذا لم يكن موجوداً
-          mkdir -p dist
-          npx cap init "MyStore" "com.mystore.app" --web-dir dist --no-interactive || true
-          npx cap add ios || true
-          npx cap sync ios
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init MyStore com.mystore.app --web-dir dist
+          npx cap add ios
 
       - name: Build Xcode Project
         run: |
