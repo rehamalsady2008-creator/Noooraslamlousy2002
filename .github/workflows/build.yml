@@ -27,9 +27,12 @@ jobs:
 
       - name: Setup Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npm install -g @capacitor/cli
+          npm install @capacitor/core @capacitor/ios
+          mkdir -p dist
           npx cap init MyStore com.mystore.app --web-dir dist
           npx cap add ios
+          npx cap copy ios
 
       - name: Build Xcode Project
         run: |
