@@ -25,14 +25,12 @@ jobs:
       - name: Build Web Project
         run: bun run build
 
-      - name: Setup Capacitor
+      - name: Prepare Capacitor Config & Platform
         run: |
-          npm install -g @capacitor/cli
+          npx --yes @capacitor/cli init "MyStore" "com.mystore.app" --web-dir dist
           npm install @capacitor/core @capacitor/ios
-          mkdir -p dist
-          npx cap init MyStore com.mystore.app --web-dir dist
-          npx cap add ios
-          npx cap copy ios
+          npx cap add ios || true
+          npx cap sync ios
 
       - name: Build Xcode Project
         run: |
