@@ -1,0 +1,50 @@
+name: Build Web App to IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Build Web Project
+        run: bun run build
+
+      - name: Install Capacitor & Add iOS
+        run: |
+          bun add @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init "MyStore" "com.mystore.app" --web-dir dist
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Build iOS App
+        run: |
+          cd ios/App
+          xcodebuild build -scheme App -sdk iphoneos -configuration Release -derivedDataPath build
+
+      - name: Create IPA
+        run: |
+          mkdir -p Payload
+          cp -r ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r App.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-IPA
+          path: '*.ipa'
