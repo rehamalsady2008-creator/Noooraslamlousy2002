@@ -25,19 +25,21 @@ jobs:
       - name: Build Web Project
         run: bun run build
 
-      - name: Install Capacitor & Add iOS
+      - name: Setup Capacitor & iOS Platform
         run: |
           bun add @capacitor/core @capacitor/cli @capacitor/ios
-          npx cap init "MyStore" "com.mystore.app" --web-dir dist
-          npx cap add ios
+          # إنشاء مجلد dist تحسباً إذا لم يكن موجوداً
+          mkdir -p dist
+          npx cap init "MyStore" "com.mystore.app" --web-dir dist --no-interactive || true
+          npx cap add ios || true
           npx cap sync ios
 
-      - name: Build iOS App
+      - name: Build Xcode Project
         run: |
           cd ios/App
-          xcodebuild build -scheme App -sdk iphoneos -configuration Release -derivedDataPath build
+          xcodebuild build -scheme App -sdk iphoneos -configuration Release -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      - name: Create IPA
+      - name: Create Payload and IPA
         run: |
           mkdir -p Payload
           cp -r ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
