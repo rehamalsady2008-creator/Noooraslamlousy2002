@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
@@ -27,16 +27,13 @@ jobs:
 
       - name: Configure Capacitor & Add iOS
         run: |
-          # تحديد مجلد البناء المتاح أو إنشاؤه
           WEB_DIR="dist"
           if [ -d "out" ]; then WEB_DIR="out"; fi
           if [ -d "build" ]; then WEB_DIR="build"; fi
           mkdir -p $WEB_DIR
 
-          # تثبيت الحزم المطلوبة
           bun add @capacitor/core @capacitor/cli @capacitor/ios
 
-          # إنشاء ملف التهيئة مباشرة لتجنب أسئلة الـ CLI
           cat <<EOF > capacitor.config.json
           {
             "appId": "com.mystore.app",
@@ -46,7 +43,6 @@ jobs:
           }
           EOF
 
-          # إضافة منصة iOS والمزامنة
           npx cap add ios || true
           npx cap sync ios
 
