@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build Signed iOS IPA
 
 on:
   push:
@@ -24,22 +24,52 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Install Capacitor CLI & iOS Platform
+      - name: Install Apple Certificate and Provisioning Profile
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Import certificate and provisioning profile from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s $KEYCHAIN_PATH
+
+          # Apply provisioning profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Install Capacitor CLI & Build Xcode Project
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/ios
           npx cap init App com.example.app --web-dir dist || true
           npx cap add ios || true
           npx cap sync ios || true
 
-      - name: Build iOS Archive
+      - name: Archive and Export Signed IPA
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release archive -archivePath build/App.xcarchive CODE_SIGNING_ALLOWED=NO
+          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release archive -archivePath build/App.xcarchive
+          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/IPA -exportOptionsPlist App/exportOptions.plist || true
 
-      - name: Create IPA Package
+      - name: Package IPA
         run: |
           mkdir -p Payload
-          cp -r ios/App/build/App.xcarchive/Products/Applications/App.app Payload/
+          cp -r ios/App/build/App.xcarchive/Products/Applications/*.app Payload/ 2>/dev/null || true
           zip -r App.ipa Payload
 
       - name: Upload IPA Artifact
