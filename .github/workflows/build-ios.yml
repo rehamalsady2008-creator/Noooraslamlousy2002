@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
       - name: Checkout Code
@@ -24,19 +24,26 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Setup Capacitor / Cordova iOS
+      - name: Install Capacitor CLI & iOS Platform
         run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init App com.example.app --web-dir dist || true
           npx cap add ios || true
-          npx cap copy ios || true
+          npx cap sync ios || true
 
-      - name: Build iOS Archive & IPA
+      - name: Build iOS Archive
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release archive -archivePath build/App.xcarchive CODE_SIGNING_ALLOWED=NO
-          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/IPA -exportOptionsPlist App/ExportOptions.plist CODE_SIGNING_ALLOWED=NO || true
+
+      - name: Create IPA Package
+        run: |
+          mkdir -p Payload
+          cp -r ios/App/build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -r App.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v3
         with:
           name: App-IPA
-          path: ios/App/build/
+          path: App.ipa
