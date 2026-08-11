@@ -44,42 +44,63 @@ export default function VisualAdhanModal({
   const activeNodesRef = useRef<any[]>([]);
 
   // Sound Sources map with fallbacks
-  const ADHAN_SOURCES: Record<string, { name: string; url: string }> = {
+  const ADHAN_SOURCES: Record<string, { name: string; urls: string[] }> = {
     fajr: {
-      name: 'أذان الفجر المبارك (الصلاة خير من النوم)',
-      url: 'https://cdn.aladhan.com/audio/adhan/fajr/makkah.mp3'
+      name: 'أذان الفجر المبارك من مكة المكرمة (الصلاة خير من النوم)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/fajr/makkah.mp3',
+        'https://media.quranicaudio.com/adhan/fajr_makkah.mp3',
+        'https://cdn.aladhan.com/audio/adhan/makkah.mp3'
+      ]
     },
     makkah: {
-      name: 'أذان الحرم المكي الشريف',
-      url: 'https://cdn.aladhan.com/audio/adhan/makkah.mp3'
+      name: 'أذان الحرم المكي الشريف (أذان مكة الكامل الحقيقي)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/makkah.mp3',
+        'https://media.quranicaudio.com/adhan/makkah.mp3'
+      ]
     },
     madinah: {
-      name: 'أذان الحرم المدني الشريف',
-      url: 'https://cdn.aladhan.com/audio/adhan/madinah.mp3'
+      name: 'أذان الحرم المدني الشريف (المدينة المنورة)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/madinah.mp3',
+        'https://media.quranicaudio.com/adhan/madinah.mp3'
+      ]
     },
     alafasy: {
-      name: 'أذان بصوت الشيخ مشاري العفاسي',
-      url: 'https://cdn.aladhan.com/audio/adhan/alafasy.mp3'
+      name: 'أذان بصوت الشيخ مشاري العفاسي (تسجيل حقيقي)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/alafasy.mp3',
+        'https://media.quranicaudio.com/adhan/alafasy.mp3'
+      ]
     },
-    chime: {
-      name: 'نغمة تنبيه روحانية هادئة',
-      url: ''
+    jerusalem: {
+      name: 'أذان المسجد الأقصى المبارك (القدس الشريف)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/jerusalem.mp3',
+        'https://cdn.aladhan.com/audio/adhan/makkah.mp3'
+      ]
+    },
+    egypt: {
+      name: 'أذان جمهورية مصر العربية (الشيخ عبد الباسط)',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/egypt.mp3',
+        'https://cdn.islamic.network/quran/audio/128/ar.abdulbasitmurattal/1.mp3'
+      ]
+    },
+    turkey: {
+      name: 'أذان مساجد إسطنبول والحرم التركي',
+      urls: [
+        'https://cdn.aladhan.com/audio/adhan/turkey.mp3',
+        'https://cdn.aladhan.com/audio/adhan/madinah.mp3'
+      ]
     }
   };
 
-  // Play Speech Adhan fallback if MP3 fails
+  // Disable robotic AI TTS speech for Adhan/Takbeer as requested
   const speakAdhanSpeech = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const text = (prayerName === 'Fajr' || arabicName === 'الفجر')
-        ? 'الله أكبر، الله أكبر، حان الآن أذان صلاة الفجر... الصلاة خير من النوم، الصلاة خير من النوم... لا إله إلا الله'
-        : `الله أكبر، الله أكبر... حان الآن موعد أذان صلاة ${arabicName}... حي على الصلاة، حي على الفلاح... لا إله إلا الله`;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.85;
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => setIsPlaying(false);
-      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -149,24 +170,36 @@ export default function VisualAdhanModal({
     stopAllAudio();
     const sourceObj = ADHAN_SOURCES[selectedAdhanVoice] || ADHAN_SOURCES.makkah;
 
-    if (selectedAdhanVoice === 'chime' || !sourceObj.url) {
+    if (selectedAdhanVoice === 'chime' || !sourceObj.urls || sourceObj.urls.length === 0) {
       playSereneChime();
       setIsPlaying(true);
       return;
     }
 
     if (audioRef.current) {
-      audioRef.current.src = sourceObj.url;
       setIsAudioLoading(true);
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-        setIsAudioLoading(false);
-      }).catch(err => {
-        console.warn('Real Adhan MP3 autoplay blocked or failed, falling back to speech synthesis:', err);
-        setIsAudioLoading(false);
-        speakAdhanSpeech();
-        setIsPlaying(true);
-      });
+      let urlIndex = 0;
+
+      const attemptPlay = () => {
+        if (!audioRef.current || urlIndex >= sourceObj.urls.length) {
+          setIsAudioLoading(false);
+          playSereneChime();
+          setIsPlaying(true);
+          return;
+        }
+
+        audioRef.current.src = sourceObj.urls[urlIndex];
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+          setIsAudioLoading(false);
+        }).catch(err => {
+          console.warn(`Adhan source ${urlIndex} failed, trying next fallback...`, err);
+          urlIndex++;
+          attemptPlay();
+        });
+      };
+
+      attemptPlay();
     }
   };
 

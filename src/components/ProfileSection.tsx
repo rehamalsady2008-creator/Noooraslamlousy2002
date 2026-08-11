@@ -38,10 +38,101 @@ interface ProfileSectionProps {
 }
 
 export const RECITERS = [
-  { id: 'afasy', name: 'الشيخ مشاري راشد العفاسي', sampleText: 'الله أكبر الله أكبر... أشهد أن لا إله إلا الله', country: 'الكويت' },
-  { id: 'abdulsamad', name: 'الشيخ عبد الباسط عبد الصمد', sampleText: 'الله أكبر الله أكبر... الصلاة خير من النوم', country: 'مصر' },
-  { id: 'sudais', name: 'الشيخ عبد الرحمن السديس', sampleText: 'الله أكبر الله أكبر... حي على الصلاة حي على الفلاح', country: 'المملكة العربية السعودية' },
-  { id: 'muaiqly', name: 'الشيخ ماهر المعيقلي', sampleText: 'الله أكبر الله أكبر... لا إله إلا الله', country: 'المملكة العربية السعودية' }
+  { 
+    id: 'sudais', 
+    name: 'الشيخ عبد الرحمن السديس (أذان وتكبير الحرم المكي)', 
+    country: 'مكة المكرمة - السعودية', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/makkah.mp3',
+      'https://media.quranicaudio.com/adhan/makkah.mp3',
+      'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3'
+    ]
+  },
+  { 
+    id: 'muaiqly', 
+    name: 'الشيخ ماهر المعيقلي (أذان الحرم المدني)', 
+    country: 'المدينة المنورة - السعودية', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/madinah.mp3',
+      'https://media.quranicaudio.com/adhan/madinah.mp3',
+      'https://server12.mp3quran.net/maher/001.mp3'
+    ]
+  },
+  { 
+    id: 'afasy', 
+    name: 'الشيخ مشاري راشد العفاسي (الأذان والتلاوة الأصيلة)', 
+    country: 'الكويت', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/alafasy.mp3',
+      'https://media.quranicaudio.com/adhan/alafasy.mp3',
+      'https://server8.mp3quran.net/afs/001.mp3'
+    ]
+  },
+  { 
+    id: 'abdulsamad', 
+    name: 'الشيخ عبد الباسط عبد الصمد (الأذان والتلاوة المصرية)', 
+    country: 'مصر', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/egypt.mp3',
+      'https://cdn.islamic.network/quran/audio/128/ar.abdulbasitmurattal/1.mp3',
+      'https://server7.mp3quran.net/basit/001.mp3'
+    ]
+  },
+  { 
+    id: 'fajr_makkah', 
+    name: 'أذان الفجر المبارك (الصلاة خير من النوم)', 
+    country: 'مكة المكرمة', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/fajr/makkah.mp3',
+      'https://media.quranicaudio.com/adhan/fajr_makkah.mp3',
+      'https://cdn.aladhan.com/audio/adhan/makkah.mp3'
+    ]
+  },
+  { 
+    id: 'jerusalem', 
+    name: 'أذان المسجد الأقصى المبارك', 
+    country: 'القدس الشريف - فلسطين', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/jerusalem.mp3',
+      'https://cdn.aladhan.com/audio/adhan/makkah.mp3'
+    ]
+  },
+  { 
+    id: 'turkey', 
+    name: 'أذان مساجد إسطنبول والحرم التركي', 
+    country: 'إسطنبول - تركيا', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/turkey.mp3',
+      'https://cdn.aladhan.com/audio/adhan/madinah.mp3'
+    ]
+  },
+  { 
+    id: 'ali_mulla', 
+    name: 'الشيخ علي ملا (مؤذن الحرم المكي الشريف)', 
+    country: 'مكة المكرمة', 
+    audioUrls: [
+      'https://cdn.aladhan.com/audio/adhan/makkah.mp3',
+      'https://media.quranicaudio.com/adhan/makkah.mp3'
+    ]
+  },
+  { 
+    id: 'minshawi', 
+    name: 'الشيخ محمد صديق المنشاوي', 
+    country: 'مصر', 
+    audioUrls: [
+      'https://cdn.islamic.network/quran/audio/128/ar.minshawi/1.mp3',
+      'https://server11.mp3quran.net/minsh/001.mp3'
+    ]
+  },
+  { 
+    id: 'shatri', 
+    name: 'الشيخ أبو بكر الشاطري', 
+    country: 'السعودية', 
+    audioUrls: [
+      'https://cdn.islamic.network/quran/audio/128/ar.shaatree/1.mp3',
+      'https://server11.mp3quran.net/shatri/001.mp3'
+    ]
+  }
 ];
 
 export default function ProfileSection({
@@ -53,33 +144,111 @@ export default function ProfileSection({
   isEn = false
 }: ProfileSectionProps) {
   const [playingReciterId, setPlayingReciterId] = useState<string | null>(null);
+  const reciterAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const [notifPermission, setNotifPermission] = useState<string>(() => {
+    return 'Notification' in window ? Notification.permission : 'unsupported';
+  });
+  const [showIosNotifModal, setShowIosNotifModal] = useState<boolean>(false);
+
+  const sendTestNotification = () => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notif = new Notification('نور الإسلام 🕌', {
+          body: 'تم تفعيل إشعارات الأذان والأذكار بنجاح على هاتفك!',
+          icon: '/app_avatar.png',
+          dir: 'rtl',
+          badge: '/app_avatar.png',
+          tag: 'noor-islam-welcome'
+        });
+        
+        // Also play a gentle notification sound
+        const audio = new Audio('https://cdn.aladhan.com/audio/adhan/makkah.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+        
+        setTimeout(() => notif.close(), 5000);
+      } catch (e) {
+        console.warn('Direct notification instantiation error:', e);
+      }
+    }
+  };
+
+  const handleRequestNotifPermission = async () => {
+    if (!('Notification' in window)) {
+      setShowIosNotifModal(true);
+      return;
+    }
+
+    try {
+      // Compatibility with older iOS/Safari callback signature and modern Promises
+      let perm: NotificationPermission;
+      if (typeof Notification.requestPermission === 'function') {
+        const promiseResult = Notification.requestPermission((res) => {
+          if (res) {
+            setNotifPermission(res);
+            if (res === 'granted') sendTestNotification();
+          }
+        });
+        if (promiseResult && typeof promiseResult.then === 'function') {
+          perm = await promiseResult;
+          setNotifPermission(perm);
+          if (perm === 'granted') sendTestNotification();
+        }
+      }
+    } catch (err) {
+      console.error('Notification permission request error:', err);
+      setShowIosNotifModal(true);
+    }
+  };
 
   // Stats from LocalStorage
   const totalTasbih = parseInt(localStorage.getItem('tasbih_total_count') || '0', 10);
   const favoriteAzkarCount = (JSON.parse(localStorage.getItem('noor_favorite_azkar_ids') || '[]')).length;
   const khatmaPages = (JSON.parse(localStorage.getItem('noor_khatma_read_pages') || '[]')).length;
 
-  // Audio sample playback for Reciters using SpeechSynthesis or WebAudio
-  const handlePreviewReciter = (reciterId: string, text: string) => {
+  // Real audio sample playback for Reciters with fallback URLs
+  const handlePreviewReciter = (reciterId: string, urls: string[]) => {
     if (playingReciterId === reciterId) {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (reciterAudioRef.current) {
+        reciterAudioRef.current.pause();
+        reciterAudioRef.current = null;
+      }
       setPlayingReciterId(null);
       return;
     }
 
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      setPlayingReciterId(reciterId);
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.9;
-      
-      utterance.onend = () => setPlayingReciterId(null);
-      utterance.onerror = () => setPlayingReciterId(null);
-
-      window.speechSynthesis.speak(utterance);
+    if (reciterAudioRef.current) {
+      reciterAudioRef.current.pause();
+      reciterAudioRef.current = null;
     }
+
+    setPlayingReciterId(reciterId);
+
+    let urlIdx = 0;
+    const playNext = () => {
+      if (urlIdx >= urls.length) {
+        setPlayingReciterId(null);
+        return;
+      }
+
+      const audio = new Audio(urls[urlIdx]);
+      reciterAudioRef.current = audio;
+
+      audio.play().catch(err => {
+        console.warn(`Audio source ${urlIdx} failed for ${reciterId}:`, err);
+        urlIdx++;
+        playNext();
+      });
+
+      audio.onended = () => setPlayingReciterId(null);
+      audio.onerror = () => {
+        urlIdx++;
+        playNext();
+      };
+    };
+
+    playNext();
   };
 
   const selectedReciterObj = RECITERS.find(r => r.id === (settings.selectedReciter || 'afasy')) || RECITERS[0];
@@ -87,52 +256,6 @@ export default function ProfileSection({
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 text-right font-sans" dir="rtl">
       
-      {/* Top Banner & Profile Header */}
-      <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden border border-emerald-500/30">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
-        <div className="absolute top-0 left-0 w-64 h-64 bg-amber-400/10 blur-3xl rounded-full pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="relative w-20 h-20 rounded-full p-1 bg-gradient-to-tr from-amber-400 to-emerald-400 shadow-xl border-2 border-amber-300">
-              <img 
-                src="/app_avatar.png" 
-                alt="Avatar" 
-                className="w-full h-full object-cover rounded-full shadow-inner"
-              />
-              <span className="absolute bottom-0 right-0 w-5 h-5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl md:text-3xl font-extrabold font-kufi text-amber-300">
-                  {currentUser ? (currentUser.displayName || currentUser.email) : 'مستخدم التطبيق (زائر مبارك)'}
-                </h2>
-                <span className="px-2.5 py-0.5 bg-amber-400/20 border border-amber-300/40 text-amber-300 rounded-full text-xs font-bold">
-                  {currentUser ? 'حساب موثق' : 'وضع الزائر'}
-                </span>
-              </div>
-              <p className="text-xs text-emerald-200">
-                {currentUser ? currentUser.email : 'جميع بياناتك محفوظة محلياً وفي سحابة تطبيق نور الإسلام'}
-              </p>
-              <p className="text-[11px] text-amber-200/80 font-mono">
-                المنطقة: {settings.country} - {settings.city}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onLogout}
-              className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer"
-            >
-              {currentUser ? 'تسجيل الخروج' : 'إعادة تعيين الحساب'}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Main Stats Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 rounded-2xl shadow-xs text-center space-y-1">
@@ -203,12 +326,14 @@ export default function ProfileSection({
                     🕌
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-800 dark:text-slate-100">
-                      {reciter.name}
+                    <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                      <span>{reciter.name}</span>
                     </h4>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      {reciter.country}
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {reciter.country}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -217,7 +342,7 @@ export default function ProfileSection({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handlePreviewReciter(reciter.id, reciter.sampleText);
+                      handlePreviewReciter(reciter.id, reciter.audioUrls);
                     }}
                     className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                       isPlayingThis
@@ -246,25 +371,122 @@ export default function ProfileSection({
 
       {/* Sequential Notifications Preferences */}
       <div className="p-6 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-          <span className="p-2 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 rounded-xl">
-            <Bell className="w-5 h-5" />
-          </span>
-          <div>
-            <h3 className="text-lg font-black text-slate-800 dark:text-slate-100">
-              جدول الإشعارات المتتالية اليومية
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              تنبيهات الأذكار التلقائية المتتالية لمواعيد الصلاة والصباح والمساء والنوم
-            </p>
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 rounded-xl">
+              <Bell className="w-5 h-5" />
+            </span>
+            <div>
+              <h3 className="text-lg font-black text-slate-800 dark:text-slate-100">
+                إشعارات الهاتف والأذان (iPhone & Android)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                إرسال الإشعارات المباشرة إلى شاشة هاتفك مع أذان مكة المكرمة في الوقت المحدد
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {notifPermission === 'granted' && (
+              <button
+                type="button"
+                onClick={sendTestNotification}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>اختبار إشعار الآيفون/الهاتف</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRequestNotifPermission}
+              className={`px-4 py-2 rounded-2xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 ${
+                notifPermission === 'granted'
+                  ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
+                  : 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md animate-pulse'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              <span>
+                {notifPermission === 'granted' 
+                  ? '✓ الإشعارات مفعّلة بالنظام' 
+                  : 'تفعيل إشعارات آيفون / الهاتف الآن'}
+              </span>
+            </button>
           </div>
         </div>
+
+        {/* Modal for iOS / Browser Notifications Guidance */}
+        {showIosNotifModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+            <div className="bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-2.5 bg-amber-500/20 text-amber-500 rounded-2xl">
+                    <Bell className="w-6 h-6" />
+                  </span>
+                  <div>
+                    <h3 className="font-extrabold text-base text-slate-900 dark:text-white">تفعيل إشعارات iPhone & Android</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">تطبيق نور الإسلام</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowIosNotifModal(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                  يرغب تطبيق "نور الإسلام" بإرسال إشعارات الأذان المباشرة والتذكيرات بالأذكار اليومية إلى شاشة هاتفك.
+                </p>
+                
+                <div className="p-3 bg-slate-50 dark:bg-slate-950/60 rounded-2xl space-y-1 border border-slate-200 dark:border-slate-800">
+                  <span className="font-black text-amber-600 dark:text-amber-400 block">📱 لأجهزة آيفون (iOS):</span>
+                  <span>1. تأكد من إضافة التطبيق للشاشة الرئيسية أو السماح للمتصفح.</span>
+                  <br />
+                  <span>2. اضغط على "السماح بالإشعارات" عندما يظهر لك تنبيه النظام الأصلي.</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowIosNotifModal(false);
+                    if ('Notification' in window) {
+                      try {
+                        const perm = await Notification.requestPermission();
+                        setNotifPermission(perm);
+                        if (perm === 'granted') sendTestNotification();
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs transition-all shadow-md cursor-pointer text-center"
+                >
+                  السماح بالإشعارات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowIosNotifModal(false)}
+                  className="px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3.5 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800">
             <div className="space-y-0.5">
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 block">تنبيهات أذان الصلوات الخمس والفجر والضحى</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">إشعار صوتي ومرئي بدخول كل صلاة مع دعاء دخول الوقت</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100 block">تنبيهات أذان الصلوات الخمس والفجر والضحى (مكة المكرمة)</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">إشعار صوتي ومرئي بدخول كل صلاة مع دعاء دخول الوقت وبحسب توقيت مملكة البحرين</span>
             </div>
             <input
               type="checkbox"
@@ -277,7 +499,7 @@ export default function ProfileSection({
           <div className="flex items-center justify-between p-3.5 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800">
             <div className="space-y-0.5">
               <span className="text-sm font-bold text-slate-800 dark:text-slate-100 block">إشعارات الأذكار المتتالية (صباح، مساء، نوم)</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">تذكير تلقائي هادئ في الأوقات الفضيلة</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">تذكير تلقائي هادئ في الأوقات الفضيلة مع قراءة شريفة</span>
             </div>
             <input
               type="checkbox"
@@ -300,17 +522,6 @@ export default function ProfileSection({
             />
           </div>
         </div>
-      </div>
-
-      {/* Code Export / ZIP Info Notice for Publishing */}
-      <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-950 border border-emerald-200 dark:border-slate-800 rounded-3xl space-y-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-        <div className="flex items-center gap-2 font-black text-emerald-800 dark:text-emerald-300 text-sm">
-          <Database className="w-4 h-4" />
-          <span>تصدير التطبيق والملف البرمجي بصيغة ZIP للمتجر</span>
-        </div>
-        <p>
-          تطبيقك جاهز بالكامل للنشر في المتجر! يمكنك في أي وقت النقر على خيار <strong>Export project / ZIP</strong> من القائمة العلوية لمنصة AI Studio لتحميل كامل ملفات الكود البرمجي بضغط زر واحدة ونشرها أو تحويلها لتطبيق هاتف.
-        </p>
       </div>
 
     </div>

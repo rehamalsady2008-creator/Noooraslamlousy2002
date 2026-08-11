@@ -5,17 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { RotateCcw, Plus, Trash2, Heart, Sparkles, TrendingUp, Target, Award } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
+import { RotateCcw, Plus, Trash2, Heart, Sparkles, Target, Award } from 'lucide-react';
 
 interface TasbihSectionProps {
   soundEnabled: boolean;
@@ -49,136 +39,6 @@ const getAudioCtx = () => {
   }
   return globalAudioCtx;
 };
-
-// Isolated, memoized weekly stats chart to prevent SVG re-renders on counter taps
-const WeeklyStatsChart = memo(function WeeklyStatsChart({
-  dailyHistory,
-  onClearHistory
-}: {
-  dailyHistory: DailyHistory;
-  onClearHistory: () => void;
-}) {
-  const [showConfirmClear, setShowConfirmClear] = useState<boolean>(false);
-
-  const getChartData = () => {
-    const data = [];
-    const daysOfWeekArabic = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    const d = new Date();
-
-    for (let i = 6; i >= 0; i--) {
-      const temp = new Date();
-      temp.setDate(d.getDate() - i);
-      const year = temp.getFullYear();
-      const month = String(temp.getMonth() + 1).padStart(2, '0');
-      const day = String(temp.getDate()).padStart(2, '0');
-      const key = `${year}-${month}-${day}`;
-
-      const dayName = daysOfWeekArabic[temp.getDay()];
-      const countVal = dailyHistory[key] || 0;
-
-      data.push({
-        dateStr: `${month}/${day}`,
-        dayName,
-        'التكرار': countVal,
-      });
-    }
-    return data;
-  };
-
-  const chartData = getChartData();
-
-  return (
-    <div className="border-t border-slate-100 dark:border-slate-800/60 pt-6 space-y-4 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-xl">
-            <TrendingUp className="w-4 h-4" />
-          </span>
-          <div>
-            <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 font-kufi">إحصائيات التسبيح الأسبوعية</h4>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">متابعة بيانية لمعدل الأذكار اليومية طوال أيام الأسبوع</p>
-          </div>
-        </div>
-
-        {/* Clear stats button */}
-        <div className="relative">
-          {!showConfirmClear ? (
-            <button
-              type="button"
-              onClick={() => setShowConfirmClear(true)}
-              className="text-[10px] text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 font-bold cursor-pointer border border-red-100/10"
-            >
-              مسح الإحصائيات
-            </button>
-          ) : (
-            <div className="flex items-center gap-1 bg-red-50 dark:bg-red-950/20 p-1 rounded-lg border border-red-150 dark:border-red-900/30">
-              <span className="text-[9px] text-red-600 dark:text-red-400 px-1 font-bold">متأكد؟</span>
-              <button
-                type="button"
-                onClick={() => {
-                  onClearHistory();
-                  setShowConfirmClear(false);
-                }}
-                className="bg-red-600 text-white text-[9px] px-2 py-0.5 rounded-md hover:bg-red-700 font-bold cursor-pointer"
-              >
-                نعم
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowConfirmClear(false)}
-                className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[9px] px-2 py-0.5 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700 font-bold cursor-pointer"
-              >
-                إلغاء
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Recharts Container */}
-      <div className="w-full h-60 bg-[#FAF9F5]/40 dark:bg-[#0B1415]/30 border border-slate-150 dark:border-slate-800/30 rounded-2xl p-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" className="dark:stroke-slate-800/20" />
-            <XAxis
-              dataKey="dayName"
-              tick={{ fontSize: 10, fontWeight: 600, fill: '#64748B' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 10, fontWeight: 600, fill: '#64748B' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#0F172A',
-                borderRadius: '12px',
-                border: 'none',
-                fontSize: '11px',
-                color: '#FFF',
-                direction: 'rtl',
-                textAlign: 'right'
-              }}
-              labelClassName="font-bold text-emerald-400 text-xs mb-1"
-              formatter={(value: any) => [`${value} تكرار`, 'العدد']}
-            />
-            <Bar dataKey="التكرار" radius={[6, 6, 0, 0]} maxBarSize={28}>
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={index === 6 ? '#10B981' : '#059669'}
-                  className="transition-colors duration-300"
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-});
 
 // Structured Tasbih Preset Categories
 interface TasbihCategory {
@@ -776,12 +636,6 @@ export default function TasbihSection({ soundEnabled, isEn = false }: TasbihSect
           </button>
         </div>
       </div>
-
-      {/* Chart Section */}
-      <WeeklyStatsChart
-        dailyHistory={dailyHistory}
-        onClearHistory={handleClearHistory}
-      />
     </div>
   );
 }

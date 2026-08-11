@@ -54,7 +54,6 @@ import AIChatSection from './components/AIChatSection';
 import RuqyahSection from './components/RuqyahSection';
 import VisualAdhanModal from './components/VisualAdhanModal';
 import VerseOfTheDay from './components/VerseOfTheDay';
-import GoogleDriveSection from './components/GoogleDriveSection';
 import ProfileSection from './components/ProfileSection';
 import SplashScreenModal from './components/SplashScreenModal';
 
@@ -100,40 +99,33 @@ const PRAYERS_INFO = {
 export default function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
-    // Open Welcome Auth modal on first launch if user is neither authenticated nor guest
-    const savedUser = localStorage.getItem('noor_user');
-    const isGuestSaved = localStorage.getItem('noor_is_guest') === 'true';
-    return !savedUser && !isGuestSaved;
-  });
-  
   const [currentUser, setCurrentUser] = useState<any>(() => {
     const saved = localStorage.getItem('noor_user');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [isGuest, setIsGuest] = useState<boolean>(() => {
-    return localStorage.getItem('noor_is_guest') === 'true';
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
+    // Mandatory sign-in if no user account exists
+    const savedUser = localStorage.getItem('noor_user');
+    return !savedUser;
   });
 
-  const handleLoginSuccess = (user: any, guestMode: boolean) => {
+  const handleLoginSuccess = (user: any) => {
     setCurrentUser(user);
-    setIsGuest(guestMode);
-    if (user || guestMode) {
+    if (user) {
+      localStorage.setItem('noor_user', JSON.stringify(user));
+      localStorage.removeItem('noor_is_guest');
       setIsAuthModalOpen(false);
     } else {
       setIsAuthModalOpen(true);
     }
-    if (user) {
-      localStorage.setItem('noor_user', JSON.stringify(user));
-      localStorage.removeItem('noor_is_guest');
-    } else if (guestMode) {
-      localStorage.setItem('noor_is_guest', 'true');
-      localStorage.removeItem('noor_user');
-    } else {
-      localStorage.removeItem('noor_user');
-      localStorage.removeItem('noor_is_guest');
-    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('noor_user');
+    localStorage.removeItem('noor_is_guest');
+    setIsAuthModalOpen(true);
   };
 
   const [activeAdhanAlert, setActiveAdhanAlert] = useState<{
@@ -168,7 +160,7 @@ export default function App() {
       visualAdhanAlert: true,
       azkarReminder: true,
       soundEnabled: true,
-      customAdhanSound: 'default',
+      customAdhanSound: 'makkah',
       appName: 'نور الإسلام',
       dedicationText: 'صدقة جارية بإذن الله عن لؤي بن حسين وعن والده رحمه الله وغفر له وجميع المسلمين والمسلمات الأحياء منهم والأموات.',
       developerName: 'لؤي بن حسين',
@@ -216,7 +208,7 @@ export default function App() {
     return () => { isMounted = false; };
   }, [settings.country, settings.city, settings.calculationMethod]);
 
-  // Daily Azkar background reminders checker
+  // Daily Azkar background reminders checker & Silent Hasana Notifications
   useEffect(() => {
     const triggeredKey = 'noor_triggered_reminders';
     
@@ -237,9 +229,13 @@ export default function App() {
         }
       } else {
         reminders = [
-          { id: 'morning', name: 'أذكار الصباح', time: '07:00', enabled: true },
-          { id: 'evening', name: 'أذكار المساء', time: '16:30', enabled: true },
-          { id: 'sleep', name: 'أذكار النوم', time: '22:00', enabled: true },
+          { id: 'morning', name: 'أذكار الصباح المباركة', time: '07:00', enabled: true },
+          { id: 'hasana_1', name: 'ذكر اليوم كنز الحسنات 💎', time: '09:30', enabled: true },
+          { id: 'hasana_2', name: 'ذكر اليوم ثقيل في الميزان ✨', time: '11:30', enabled: true },
+          { id: 'evening', name: 'أذكار المساء المباركة', time: '16:30', enabled: true },
+          { id: 'hasana_3', name: 'الصلاة على النبي ﷺ 🌸', time: '18:00', enabled: true },
+          { id: 'hasana_4', name: 'استغفار ورفع درجات 🌿', time: '20:30', enabled: true },
+          { id: 'sleep', name: 'أذكار النوم والتحصين', time: '22:00', enabled: true },
           { id: 'wakeup', name: 'أذكار الاستيقاظ', time: '05:30', enabled: false }
         ];
         localStorage.setItem('noor_azkar_reminders', JSON.stringify(reminders));
@@ -279,6 +275,14 @@ export default function App() {
               bodyText = 'حان وقت أذكار النوم لنوم مبارك وهانئ وحفظ من الله عز وجل.';
             } else if (rem.id === 'wakeup') {
               bodyText = 'الحمد لله الذي أحيانا بعد ما أماتنا وإليه النشور. حان وقت أذكار الاستيقاظ.';
+            } else if (rem.id === 'hasana_1') {
+              bodyText = 'ذكر صامت للحسنات: "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير" 💎';
+            } else if (rem.id === 'hasana_2') {
+              bodyText = 'ذكر صامت للحسنات: "سبحان الله وبحمده، سبحان الله العظيم" ✨ (كلمتان خفيفتان على اللسان ثقيلتان في الميزان).';
+            } else if (rem.id === 'hasana_3') {
+              bodyText = 'ذكر صامت للحسنات: "اللهم صلِ وسلم وبارك على نبينا وحبيبنا محمد" 🌸 (من صلى عليّ صلاة صلى الله عليه بها عشراً).';
+            } else if (rem.id === 'hasana_4') {
+              bodyText = 'ذكر صامت للحسنات: "أستغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه" 🌿 (لا حول ولا قوة إلا بالله كنز الجنة).';
             } else {
               bodyText = `حان الآن موعد قراءة ${rem.name}.`;
             }
@@ -287,7 +291,8 @@ export default function App() {
               new Notification(rem.name, {
                 body: bodyText,
                 icon: '/src/assets/images/app_logo_1784263255295.jpg',
-                dir: 'rtl'
+                dir: 'rtl',
+                silent: true // Silent notification for daily azkar rewards
               });
             } catch (err) {
               console.error('Failed to display browser notification:', err);
@@ -307,18 +312,31 @@ export default function App() {
     return () => clearInterval(interval);
   }, [settings.azkarReminder]);
 
-  // Request browser notification permissions on mount
+  // Request browser notification permissions on mount for iOS and Android
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       try {
-        Notification.requestPermission();
+        if (typeof Notification.requestPermission === 'function') {
+          const req = Notification.requestPermission((perm) => {
+            if (perm === 'granted') {
+              console.log('iOS / Android native notification permission granted');
+            }
+          });
+          if (req && typeof req.then === 'function') {
+            req.then((perm) => {
+              if (perm === 'granted') {
+                console.log('Native notification permission granted');
+              }
+            }).catch(() => {});
+          }
+        }
       } catch (e) {
-        console.error(e);
+        console.warn('Native notification request exception:', e);
       }
     }
   }, []);
 
-  // Daily Adhan & Prayer Times background checker
+  // Daily Adhan, Iqamah & Sunrise Prayer Times background checker
   useEffect(() => {
     const triggeredKey = 'noor_triggered_adhan';
     
@@ -362,18 +380,40 @@ export default function App() {
       // Filter and clean old items (older than today)
       triggeredList = triggeredList.filter(item => item.startsWith(todayStr));
 
+      // 1. Check Prayer Adhan Times
       computedPrayers.forEach((p) => {
-        if (p.name === 'Sunrise') return; // Sunrise is a solar marker, not an adhan prayer
+        // Handle Sunrise notification
+        if (p.name === 'Sunrise' && p.time === currentHHMM) {
+          const uniqueTriggerId = `${todayStr}-sunrise-${p.time}`;
+          if (!triggeredList.includes(uniqueTriggerId)) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification('🌅 حان الآن وقت صلاة الشروق والضحى', {
+                  body: `أثابكم الله - حان وقت صلاة الضحى والشرق في مدينة ${settings.city}. صلاة الأوابين مباركة ونور للبدن.`,
+                  icon: settings.appLogoUrl || '/src/assets/images/app_logo_1784263255295.jpg',
+                  dir: 'rtl'
+                });
+              } catch (e) {}
+            }
+            triggeredList.push(uniqueTriggerId);
+            localStorage.setItem(triggeredKey, JSON.stringify(triggeredList));
+          }
+          return;
+        }
+
+        if (p.name === 'Sunrise') return;
+
+        // Exact Adhan Time Trigger
         if (p.time === currentHHMM) {
           const uniqueTriggerId = `${todayStr}-${p.name}-${p.time}`;
           if (!triggeredList.includes(uniqueTriggerId)) {
             const info = PRAYERS_INFO[p.name as keyof typeof PRAYERS_INFO];
             
-            // 1. Browser Background notification (Adhan Reminder)
+            // Browser Background notification (Adhan Reminder)
             if (settings.adhanReminder) {
               if ('Notification' in window && Notification.permission === 'granted') {
                 try {
-                  new Notification(`حان الآن موعد أذان ${p.arabicName}`, {
+                  new Notification(`🕌 حان الآن موعد أذان صلاة ${p.arabicName}`, {
                     body: `حان وقت صلاة ${p.arabicName} في مدينة ${settings.city} عند الساعة ${formatTime12(p.time, false)}.\n\nالدعاء المأثور: ${info?.supplication || ''}`,
                     icon: settings.appLogoUrl || '/src/assets/images/app_logo_1784263255295.jpg',
                     dir: 'rtl'
@@ -384,7 +424,7 @@ export default function App() {
               }
             }
 
-            // 2. In-App Visual Alert popup (Visual Adhan Alert)
+            // In-App Visual Alert popup (Visual Adhan Alert)
             if (settings.visualAdhanAlert) {
               setActiveAdhanAlert({
                 prayerName: p.name,
@@ -396,8 +436,33 @@ export default function App() {
               });
             }
 
-            // Append to triggered list to prevent duplicate triggers in the same minute
+            // Append to triggered list
             triggeredList.push(uniqueTriggerId);
+            localStorage.setItem(triggeredKey, JSON.stringify(triggeredList));
+          }
+        }
+
+        // 2. Check Iqamah Time Trigger (20 minutes after Adhan)
+        const [pHStr, pMStr] = p.time.split(':');
+        const pDate = new Date();
+        pDate.setHours(parseInt(pHStr), parseInt(pMStr) + 20, 0, 0);
+        const iqamahHH = String(pDate.getHours()).padStart(2, '0');
+        const iqamahMM = String(pDate.getMinutes()).padStart(2, '0');
+        const iqamahHHMM = `${iqamahHH}:${iqamahMM}`;
+
+        if (currentHHMM === iqamahHHMM) {
+          const uniqueIqamahId = `${todayStr}-iqamah-${p.name}-${iqamahHHMM}`;
+          if (!triggeredList.includes(uniqueIqamahId)) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(`📢 حان الآن وقت إقامة صلاة ${p.arabicName}`, {
+                  body: `قد قامت الصلاة، أثابكم الله وتقبل الله طاعتكم وصالح أعمالكم في مدينة ${settings.city}.`,
+                  icon: settings.appLogoUrl || '/src/assets/images/app_logo_1784263255295.jpg',
+                  dir: 'rtl'
+                });
+              } catch (e) {}
+            }
+            triggeredList.push(uniqueIqamahId);
             localStorage.setItem(triggeredKey, JSON.stringify(triggeredList));
           }
         }
@@ -767,28 +832,22 @@ export default function App() {
       component: (
         <ProfileSection 
           currentUser={currentUser} 
-          isGuest={isGuest} 
+          isGuest={false} 
           settings={settings} 
           onUpdateSettings={handleUpdateSettings} 
-          onLogout={() => {
-            setCurrentUser(null);
-            setIsGuest(false);
-            localStorage.removeItem('noor_user');
-            localStorage.removeItem('noor_is_guest');
-            setIsAuthModalOpen(true);
-          }} 
+          onLogout={handleLogout} 
           isEn={isEn} 
         />
       )
     },
     {
-      id: 'google-drive',
-      title: isEn ? 'Google Drive Cloud Backup' : 'نسخ واستعادة جوجل درايف',
-      desc: isEn ? 'Backup and sync your app settings, tasbih logs & khatma goals to Google Drive' : 'ربط جوجل درايف لحفظ واستعادة نسخك الاحتياطية وإدارتها بأمان',
-      icon: <HardDrive className="w-5 h-5" />,
-      colorClass: 'from-emerald-700 to-amber-600',
-      bgLight: 'bg-amber-500/10 text-amber-800 border-amber-500/20',
-      component: <GoogleDriveSection isEn={isEn} />
+      id: 'ai-chat',
+      title: isEn ? 'Noor AI Assistant' : 'ذكاء نور الإسلام الاصطناعي',
+      desc: isEn ? 'Instant & reliable AI assistant for Islamic Q&A, Fatwas, Tafsir & Duas' : 'مستشار ذكي يجيب فوراً وبدقة على الأسئلة الدينية والأحكام والقرآن والسنة',
+      icon: <Sparkles className="w-5 h-5 text-amber-400" />,
+      colorClass: 'from-amber-500 via-emerald-600 to-teal-600',
+      bgLight: 'bg-amber-500/10 text-amber-900 border-amber-500/20',
+      component: <AIChatSection isEn={isEn} />
     }
   ];
 
@@ -867,7 +926,7 @@ export default function App() {
           <button
             id="auth-welcome-modal-btn"
             onClick={() => {
-              if (currentUser || isGuest) {
+              if (currentUser) {
                 setActiveSection('profile');
               } else {
                 setIsAuthModalOpen(true);
@@ -917,55 +976,90 @@ export default function App() {
                 {/* 1. Main Left Area (Column Span 2) */}
                 <div className="lg:col-span-2 space-y-8">
                   
-                  {/* Breathtaking Dome-like Hero Banner */}
+                  {/* Breathtaking Dome-like Hero Banner with Grid Layout */}
                   <div 
                     id="header-hero-banner"
-                    className="w-full min-h-[220px] sm:h-64 rounded-3xl sm:rounded-[2.5rem] overflow-hidden relative shadow-lg border border-[#EBE7DF] dark:border-[#132326] flex flex-col justify-between p-5 sm:p-7 lg:p-8"
+                    className="w-full min-h-[240px] rounded-3xl sm:rounded-[2.5rem] overflow-hidden relative shadow-xl border border-[#EBE7DF] dark:border-[#132326] p-5 sm:p-7 lg:p-8"
                   >
-                    {/* Background image */}
+                    {/* Background image & Golden-emerald glowing overlay */}
                     <img 
                       src={settings.headerBgUrl || defaultBanner}
                       alt="Mosque Banner" 
-                      className="absolute inset-0 w-full h-full object-cover brightness-[0.3] contrast-[1.1]"
+                      className="absolute inset-0 w-full h-full object-cover brightness-[0.25] contrast-[1.1]"
                       referrerPolicy="no-referrer"
                     />
-                    
-                    {/* Golden-emerald glowing overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A1817]/95 via-[#0A1817]/60 to-black/30"></div>
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-amber-400/5 blur-3xl pointer-events-none rounded-full"></div>
-                    
-                    {/* Top Row inside Hero: Greeting & Mobile Date/Time Pill */}
-                    <div className="relative z-10 flex items-center justify-between gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 bg-amber-400/20 rounded-xl text-amber-300 shrink-0">
-                          <Sparkles className="w-4 h-4 animate-pulse" />
-                        </span>
-                        <span className="text-[11px] sm:text-xs font-black tracking-wider text-emerald-300 bg-emerald-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/30">
-                          {getDynamicGreeting()}
-                        </span>
-                      </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0A1817]/95 via-[#0A1817]/80 to-[#061211]/90"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/10 blur-3xl pointer-events-none rounded-full"></div>
 
-                      {/* Hero Date & Time Pill (Includes Time, Hijri & Gregorian Dates) */}
-                      <div className="flex flex-wrap items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/15 text-[10px] sm:text-xs font-medium text-amber-300">
-                        <span className="font-mono font-black">
-                          {currentTime.toLocaleTimeString(isEn ? 'en-US' : 'ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-white/30">|</span>
-                        <span className="text-emerald-300 font-bold">🌙 {getHijriDate()}</span>
-                        <span className="text-white/30">|</span>
-                        <span className="text-sky-200 font-bold">📅 {getGregorianDate()}</span>
-                      </div>
-                    </div>
-
-                    {/* Bottom Content Area: Title & Dedication */}
-                    <div className="relative z-10 space-y-2 text-white mt-4 sm:mt-auto">
-                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black font-kufi text-amber-300 drop-shadow-sm leading-tight">
-                        {settings.appName || (isEn ? "Noor Al-Islam" : "نور الإسلام")}
-                      </h2>
+                    {/* Grid Container */}
+                    <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center h-full">
                       
-                      <p className="text-xs sm:text-sm text-slate-200/90 max-w-xl font-medium leading-relaxed font-sans">
-                        {settings.dedicationText || (isEn ? "Continuous charity for spiritual serenity and daily remembrance." : "صدقة جارية بإذن الله ليكون رفيقك الروحي السلس، معطرًا بذكر رب العالمين وبأسهل واجهة عصرية متكاملة.")}
-                      </p>
+                      {/* Text Side (Column Span 8) */}
+                      <div className="md:col-span-8 space-y-4 text-white flex flex-col justify-between h-full">
+                        
+                        {/* Top Greeting & Date/Time Pills */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1.5 bg-amber-400/20 rounded-xl text-amber-300 shrink-0">
+                              <Sparkles className="w-4 h-4 animate-pulse" />
+                            </span>
+                            <span className="text-[11px] sm:text-xs font-black tracking-wider text-emerald-300 bg-emerald-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/30">
+                              {getDynamicGreeting()}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/15 text-[10px] sm:text-xs font-medium text-amber-300">
+                            <span className="font-mono font-black">
+                              {currentTime.toLocaleTimeString(isEn ? 'en-US' : 'ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="text-white/30">|</span>
+                            <span className="text-emerald-300 font-bold">🌙 {getHijriDate()}</span>
+                            <span className="text-white/30">|</span>
+                            <span className="text-sky-200 font-bold">📅 {getGregorianDate()}</span>
+                          </div>
+                        </div>
+
+                        {/* Personalized Title & Welcome Text */}
+                        <div className="space-y-1 mt-1">
+                          <h2 className="text-xs sm:text-lg lg:text-xl font-bold font-kufi text-amber-300 drop-shadow-sm leading-snug">
+                            {currentUser ? (
+                              isEn 
+                                ? `Welcome back, ${currentUser.displayName || currentUser.email.split('@')[0]}!` 
+                                : `أهلاً وسهلاً بك، ${currentUser.displayName || currentUser.email.split('@')[0]} في ${settings.appName || "نور الإسلام"}`
+                            ) : (
+                              settings.appName || (isEn ? "Noor Al-Islam" : "أهلاً بك في تطبيق نور الإسلام")
+                            )}
+                          </h2>
+                          
+                          <p className="text-[10px] sm:text-xs text-slate-200/90 max-w-xl font-medium leading-relaxed font-sans">
+                            {currentUser ? (
+                              isEn
+                                ? `Your daily spiritual space is ready. Track prayer times, recite Quran, and stay spiritually connected.`
+                                : `مرحباً بك مجدداً في مساحتك الروحانية اليومية. استمتع بمواقيت الصلاة، تلاوة القرآن الكريم والأذكار والمستشار الذكي.`
+                            ) : (
+                              settings.dedicationText || (isEn ? "Continuous charity for spiritual serenity and daily remembrance." : "صدقة جارية بإذن الله ليكون رفيقك الروحي السلس، معطرًا بذكر رب العالمين وبأسهل واجهة عصرية متكاملة.")
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Decorative Image Side (Column Span 4) */}
+                      <div className="md:col-span-4 flex items-center justify-center">
+                        <div className="relative group">
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-400 via-emerald-500 to-amber-300 blur-xl opacity-50 animate-pulse" />
+                          <div className="relative w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40 rounded-full bg-gradient-to-br from-amber-300 via-emerald-600 to-amber-500 p-1.5 shadow-2xl flex items-center justify-center">
+                            <div className="w-full h-full rounded-full overflow-hidden bg-slate-950 border-2 border-amber-300/60 flex items-center justify-center shadow-inner">
+                              <img 
+                                src={settings.appLogoUrl || defaultLogo}
+                                alt="Decorative Islamic Emblem" 
+                                className="w-full h-full object-cover rounded-full transform group-hover:scale-105 transition-transform duration-500"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
 
@@ -1222,7 +1316,7 @@ export default function App() {
         <SplashScreenModal
           onFinish={() => {
             setShowSplash(false);
-            if (!currentUser && !isGuest) {
+            if (!currentUser) {
               setIsAuthModalOpen(true);
             }
           }}
@@ -1232,14 +1326,13 @@ export default function App() {
 
       {/* Welcome & Authentication Modal (Mandatory Sign-In) */}
       <WelcomeAuthModal
-        isOpen={!showSplash && isAuthModalOpen && !currentUser && !isGuest}
+        isOpen={!showSplash && (!currentUser || isAuthModalOpen)}
         onClose={() => {
-          if (currentUser || isGuest) {
+          if (currentUser) {
             setIsAuthModalOpen(false);
           }
         }}
         currentUser={currentUser}
-        isGuest={isGuest}
         onLoginSuccess={handleLoginSuccess}
         isEn={isEn}
       />

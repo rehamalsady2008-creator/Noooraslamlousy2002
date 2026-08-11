@@ -23,11 +23,11 @@ import {
   Target,
   Calendar,
   Clock,
-  Image as ImageIcon,
   ChevronRight,
   ChevronLeft,
-  Maximize2,
-  RotateCcw
+  CheckCircle,
+  Share2,
+  Check
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { quranMetadata } from '../data/quran_metadata';
@@ -35,11 +35,36 @@ import { offlineSurahs } from '../data/quran_text';
 import { SurahMetadata, SurahDetail, Ayah } from '../types';
 
 const RECITERS = [
-  { id: 'maher', name: 'ماهر المعيقلي', url: 'https://server12.mp3quran.net/maher/' },
-  { id: 'alafasy', name: 'مشاري بن راشد العفاسي', url: 'https://server8.mp3quran.net/afs/' },
-  { id: 'basit_murattal', name: 'عبد الباسط عبد الصمد (مرتل)', url: 'https://server7.mp3quran.net/basit/' },
-  { id: 'ghamdi', name: 'سعد الغامدي', url: 'https://server7.mp3quran.net/s_gmd/' },
-  { id: 'sudais', name: 'عبد الرحمن السديس', url: 'https://server11.mp3quran.net/sds/' }
+  { 
+    id: 'maher', 
+    name: 'ماهر المعيقلي', 
+    url: 'https://server12.mp3quran.net/maher/',
+    fallbackUrl: 'https://everyayah.com/data/MaherAlMuaiqly128kbps/'
+  },
+  { 
+    id: 'alafasy', 
+    name: 'مشاري بن راشد العفاسي', 
+    url: 'https://server8.mp3quran.net/afs/',
+    fallbackUrl: 'https://everyayah.com/data/Alafasy_128kbps/'
+  },
+  { 
+    id: 'basit_murattal', 
+    name: 'عبد الباسط عبد الصمد (مرتل)', 
+    url: 'https://server7.mp3quran.net/basit/',
+    fallbackUrl: 'https://everyayah.com/data/AbdulSamad_64kbps_QuranExplorer.com/'
+  },
+  { 
+    id: 'ghamdi', 
+    name: 'سعد الغامدي', 
+    url: 'https://server7.mp3quran.net/s_gmd/',
+    fallbackUrl: 'https://everyayah.com/data/Ghamadi_40kbps/'
+  },
+  { 
+    id: 'sudais', 
+    name: 'عبد الرحمن السديس', 
+    url: 'https://server11.mp3quran.net/sds/',
+    fallbackUrl: 'https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/'
+  }
 ];
 
 const FONT_FAMILIES = [
@@ -60,13 +85,24 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
   const [fontSize, setFontSize] = useState<number>(24);
   const [activeFontFamily, setActiveFontFamily] = useState<string>('amiri');
   
-  // Display View Modes: 'mushaf' (Original Page Images), 'text' (Interactive Uthmani), 'cards' (Verse Cards)
-  const [viewMode, setViewMode] = useState<'mushaf' | 'text' | 'cards'>('mushaf');
+  // Display View Modes: 'text' (Interactive Uthmani)
+  const [viewMode, setViewMode] = useState<'text'>('text');
 
-  // Mushaf Page Mode state
-  const [mushafPage, setMushafPage] = useState<number>(1);
-  const [mushafZoom, setMushafZoom] = useState<number>(1);
-  const [imageSrcIdx, setImageSrcIdx] = useState<number>(0);
+  // Top level main directory tab: 'surahs' (114 Surahs)
+  const [directoryTab, setDirectoryTab] = useState<'surahs'>('surahs');
+
+  // Page metadata lookup helpers
+  const getSurahForPage = (pageNum: number) => {
+    let matched = quranMetadata[0];
+    for (const s of quranMetadata) {
+      if (s.startPage && s.startPage <= pageNum) {
+        matched = s;
+      } else if (s.startPage && s.startPage > pageNum) {
+        break;
+      }
+    }
+    return matched;
+  };
 
   // Loaded Surahs Cache Map (stores dynamically fetched full Uthmani Ayahs for all 114 Surahs)
   const [loadedSurahsMap, setLoadedSurahsMap] = useState<Record<number, SurahDetail>>({});
@@ -160,10 +196,6 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
   const handleSelectSurah = async (surahMeta: SurahMetadata) => {
     setTafsirResult(null);
     setActiveTafsirAyah(null);
-    setImageSrcIdx(0);
-
-    const initialPage = surahMeta.startPage || 1;
-    setMushafPage(initialPage);
 
     // 1. Check offline hardcoded surahs
     if (offlineSurahs[surahMeta.number]) {
@@ -428,21 +460,6 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  // High-Resolution Mushaf Page image URLs with fallbacks
-  const getMushafImageUrl = (pageNum: number) => {
-    const pagePadded = String(pageNum).padStart(3, '0');
-    const sources = [
-      `https://quran.ksu.edu.sa/png_big/${pageNum}.png`,
-      `https://raw.githubusercontent.com/islamic-network/quran-images/master/png/${pageNum}.png`,
-      `https://images.quran.com/page/${pageNum}.png`
-    ];
-    return sources[imageSrcIdx % sources.length];
-  };
-
-  const handleImageError = () => {
-    setImageSrcIdx(prev => prev + 1);
-  };
-
   const activeFontClass = FONT_FAMILIES.find(f => f.id === activeFontFamily)?.class || 'font-amiri';
 
   return (
@@ -468,6 +485,21 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
         }}
         onWaiting={() => setIsAudioLoading(true)}
         onCanPlay={() => setIsAudioLoading(false)}
+        onError={() => {
+          if (selectedSurah && audioRef.current) {
+            const padded = String(selectedSurah.number).padStart(3, '0');
+            const reciter = RECITERS.find(r => r.id === activeReciterId);
+            if (reciter && reciter.fallbackUrl && !audioRef.current.src.includes('everyayah.com')) {
+              console.warn("Primary mp3quran server failed, switching to EveryAyah CDN...");
+              audioRef.current.src = `${reciter.fallbackUrl}${padded}.mp3`;
+              audioRef.current.load();
+              audioRef.current.play().catch(e => console.error("Fallback audio play error:", e));
+            } else {
+              setIsAudioLoading(false);
+              setIsPlaying(false);
+            }
+          }
+        }}
       />
       
       {/* 1. Main Quran Directory or Selected Surah */}
@@ -487,161 +519,8 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
             </p>
           </div>
 
-          {/* الورد اليومي ومتابعة الختمة */}
-          <div className="p-5 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 dark:from-[#0B1415] dark:to-[#060D0E] border border-emerald-500/20 rounded-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 bg-emerald-600 text-white rounded-xl shadow-sm">
-                  <Award className="w-4 h-4" />
-                </span>
-                <div>
-                  <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 font-kufi">الورد اليومي ومتابعة الختمة المباركة</h4>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">حدد هدفك اليومي وتابع نسبة إتمام قراءتك للمصحف الشريف</p>
-                </div>
-              </div>
-              
-              {/* Target Pages Indicator */}
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="font-bold text-slate-500 dark:text-slate-400">الورد الحالي:</span>
-                <span className="font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                  {khatmaTargetPagesPerDay} {khatmaTargetPagesPerDay === 5 || khatmaTargetPagesPerDay === 10 ? 'صفحات' : 'صفحة'} / يوم
-                </span>
-              </div>
-            </div>
-
-            {/* Progress Bar & Numerical stats */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  <span>التقدم الفعلي: الصفحة {khatmaCurrentPage} من ٦٠٤</span>
-                </span>
-                <span className="font-mono text-emerald-700 dark:text-emerald-400">
-                  {Math.min(Math.round((khatmaCurrentPage / 604) * 100), 100)}% تم قراءته
-                </span>
-              </div>
-
-              {/* Visual Progress Bar */}
-              <div className="w-full h-3 bg-slate-150 dark:bg-slate-800/60 rounded-full overflow-hidden relative border border-slate-200/50 dark:border-slate-700/50">
-                <div 
-                  className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((khatmaCurrentPage / 604) * 100, 100)}%` }}
-                />
-              </div>
-
-              {/* Numerical stats row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-center">
-                <div className="bg-white/50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-150 dark:border-slate-800/40">
-                  <p className="text-[9px] text-slate-400 font-bold">الصفحات المتبقية</p>
-                  <p className="text-sm font-black font-mono text-slate-700 dark:text-slate-200">{604 - khatmaCurrentPage}</p>
-                </div>
-                <div className="bg-white/50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-150 dark:border-slate-800/40">
-                  <p className="text-[9px] text-slate-400 font-bold">الأجزاء المقروءة</p>
-                  <p className="text-sm font-black text-slate-700 dark:text-slate-200 font-mono">{(khatmaCurrentPage / 20.13).toFixed(1)} جزء</p>
-                </div>
-                <div className="bg-white/50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-150 dark:border-slate-800/40">
-                  <p className="text-[9px] text-slate-400 font-bold">المدة المقدرة للختم</p>
-                  <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 font-kufi">{Math.ceil(604 / khatmaTargetPagesPerDay)} يوم</p>
-                </div>
-                <div className="bg-white/50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-150 dark:border-slate-800/40">
-                  <p className="text-[9px] text-slate-400 font-bold">الجزء الحالي</p>
-                  <p className="text-sm font-black text-slate-700 dark:text-slate-200 font-mono">جزء {Math.min(30, Math.floor(khatmaCurrentPage / 20.13) + 1)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Controls to update and configure */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/30 dark:border-slate-800/30">
-              
-              {/* Set Daily Goal (Ward) */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Target className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>تحديد الورد اليومي المستهدف (صفحات):</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  {[5, 10, 20].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setKhatmaTargetPagesPerDay(preset)}
-                      className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                        khatmaTargetPagesPerDay === preset
-                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      {preset} {preset === 5 ? 'صفحات' : 'صفحة'}
-                    </button>
-                  ))}
-                  
-                  <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900 h-6">
-                    <input
-                      type="number"
-                      min="1"
-                      max="604"
-                      value={khatmaTargetPagesPerDay}
-                      onChange={(e) => setKhatmaTargetPagesPerDay(Math.max(1, Math.min(604, Number(e.target.value))))}
-                      className="w-10 text-center text-xs font-black font-mono text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none"
-                      style={{ fontSize: '16px' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Adjust Current Progress */}
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                  <span>تحديث الصفحة الحالية التي وصلت إليها:</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => incrementKhatmaProgress(5)}
-                    className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/20 cursor-pointer"
-                  >
-                    +٥ ص
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => incrementKhatmaProgress(10)}
-                    className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/20 cursor-pointer"
-                  >
-                    +١٠ ص
-                  </button>
-                  
-                  <div className="flex-1 flex items-center justify-between border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => updateKhatmaProgress(khatmaCurrentPage - 1)}
-                      className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-1 cursor-pointer text-xs"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      min="0"
-                      max="604"
-                      value={khatmaCurrentPage}
-                      onChange={(e) => updateKhatmaProgress(Number(e.target.value))}
-                      className="w-10 text-center text-xs font-black font-mono text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none"
-                      style={{ fontSize: '16px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateKhatmaProgress(khatmaCurrentPage + 1)}
-                      className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-1 cursor-pointer text-xs"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Specific Ayah Lookup Form */}
+          <div className="space-y-6">
+            {/* Quick Specific Ayah Lookup Form */}
           <div className="p-4 bg-gradient-to-br from-emerald-600/5 to-teal-600/5 dark:from-emerald-950/20 dark:to-teal-950/20 border border-emerald-500/10 rounded-2xl space-y-3">
             <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
               <Sparkles className="w-4 h-4 animate-spin-slow" />
@@ -755,6 +634,7 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
             })}
           </div>
         </div>
+      </div>
       ) : (
         /* 2. Selected Surah Reader & Viewer Mode */
         <div className="space-y-6">
@@ -770,75 +650,42 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
               <span>العودة لقائمة السور</span>
             </button>
 
-            {/* View Mode Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-              <button
-                type="button"
-                id="view-mode-mushaf-btn"
-                onClick={() => setViewMode('mushaf')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'mushaf'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span>المصحف المصور (الصور)</span>
-              </button>
-
-              <button
-                type="button"
-                id="view-mode-text-btn"
-                onClick={() => setViewMode('text')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'text'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>النص العثماني والآيات</span>
-              </button>
-            </div>
-
-            {/* Font & Sizing Options (when in Text mode) */}
-            {viewMode === 'text' && (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <span className="text-[10px] text-slate-400 font-bold px-1">نوع الخط:</span>
-                  <select
-                    value={activeFontFamily}
-                    onChange={(e) => setActiveFontFamily(e.target.value)}
-                    className="bg-transparent dark:bg-slate-950 text-slate-850 dark:text-slate-100 text-xs font-bold focus:outline-none cursor-pointer border-none py-0.5"
-                  >
-                    {FONT_FAMILIES.map(font => (
-                      <option key={font.id} value={font.id} className="dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-                        {font.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <span className="text-[10px] text-slate-400 pr-1">حجم الخط</span>
-                  <button
-                    id="font-size-dec-btn"
-                    onClick={() => changeFontSize(-2)}
-                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-bold font-mono px-1.5">{fontSize}</span>
-                  <button
-                    id="font-size-inc-btn"
-                    onClick={() => changeFontSize(2)}
-                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+            {/* Font & Sizing Options */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-100 dark:border-slate-850">
+                <span className="text-[10px] text-slate-400 font-bold px-1">نوع الخط:</span>
+                <select
+                  value={activeFontFamily}
+                  onChange={(e) => setActiveFontFamily(e.target.value)}
+                  className="bg-transparent dark:bg-slate-950 text-slate-850 dark:text-slate-100 text-xs font-bold focus:outline-none cursor-pointer border-none py-0.5"
+                >
+                  {FONT_FAMILIES.map(font => (
+                    <option key={font.id} value={font.id} className="dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                      {font.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
+
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-100 dark:border-slate-850">
+                <span className="text-[10px] text-slate-400 pr-1">حجم الخط</span>
+                <button
+                  id="font-size-dec-btn"
+                  onClick={() => changeFontSize(-2)}
+                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-xs font-bold font-mono px-1.5">{fontSize}</span>
+                <button
+                  id="font-size-inc-btn"
+                  onClick={() => changeFontSize(2)}
+                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Surah Header Banner */}
@@ -996,193 +843,68 @@ export default function QuranSection({ isEn = false }: QuranSectionProps) {
             </div>
           )}
 
-          {/* 3. Main Surah Content Views */}
-          {viewMode === 'mushaf' ? (
-            /* A. Original High-Res Mushaf Page View */
-            <div className="bg-[#FAF8F5] dark:bg-[#080E0F] border border-[#E8E2D5] dark:border-[#132326] rounded-3xl p-4 md:p-6 space-y-4">
+          {/* Interactive Uthmani Text View */}
+          <div className="space-y-6">
+            {isLoadingSurahText && (
+              <div className="p-8 text-center bg-emerald-500/5 border border-emerald-500/20 rounded-2xl space-y-3">
+                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+                <p className="text-sm font-bold text-emerald-950 dark:text-emerald-300 font-kufi">
+                  جاري تحميل النص العثماني والآيات لـ سورة {selectedSurah.name}...
+                </p>
+              </div>
+            )}
+
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100/40 dark:border-slate-850 rounded-2xl space-y-6 text-center">
               
-              {/* Mushaf Page Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E2D5] dark:border-[#132326]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-emerald-950 dark:text-emerald-300 font-kufi">
-                    صفحة {mushafPage} من 604
-                  </span>
-                  <span className="text-xs text-slate-400">•</span>
-                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                    سورة {selectedSurah.name}
-                  </span>
-                </div>
+              {selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
+                <p className={`text-2xl ${activeFontClass} text-slate-800 dark:text-slate-100 py-2 border-b border-slate-100/5 drop-shadow-xs`}>
+                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                </p>
+              )}
 
-                {/* Page Flip & Zoom buttons */}
-                <div className="flex items-center gap-2">
-                  {/* Jump Page dropdown */}
-                  <select
-                    value={mushafPage}
-                    onChange={(e) => setMushafPage(Number(e.target.value))}
-                    className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold rounded-xl cursor-pointer"
+              {selectedSurah.ayahs && selectedSurah.ayahs.length > 0 ? (
+                selectedSurah.ayahs.map((ayah) => (
+                  <div
+                    key={ayah.number}
+                    className="py-4 border-b border-slate-100/5 last:border-none space-y-3 group text-center"
                   >
-                    {Array.from({ length: 604 }, (_, i) => i + 1).map(p => (
-                      <option key={p} value={p}>صفحة {p}</option>
-                    ))}
-                  </select>
+                    <p
+                      className={`text-slate-900 dark:text-slate-100 leading-loose tracking-wide ${activeFontClass} text-center transition-all duration-200 hover:text-emerald-700 dark:hover:text-emerald-400`}
+                      style={{ fontSize: `${fontSize}px` }}
+                    >
+                      {ayah.text}{' '}
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-emerald-600/30 text-xs font-mono font-bold text-emerald-800 dark:text-emerald-300 select-none mr-2 bg-emerald-50 dark:bg-emerald-950/30">
+                        {ayah.number}
+                      </span>
+                    </p>
 
-                  {/* Zoom controls */}
-                  <div className="flex items-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setMushafZoom(z => Math.min(z + 0.25, 2.5))}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300 cursor-pointer"
-                      title="تكبير"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMushafZoom(1)}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300 cursor-pointer"
-                      title="إعادة ضبط"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMushafZoom(z => Math.max(z - 0.25, 0.75))}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300 cursor-pointer"
-                      title="تصغير"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
+                    {ayah.translation && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 italic max-w-2xl mx-auto">
+                        {ayah.translation}
+                      </p>
+                    )}
+
+                    <div className="flex justify-center gap-2 pt-2">
+                      <button
+                        id={`ayah-tafsir-btn-${ayah.number}`}
+                        onClick={() => handleFetchAyahTafsir(selectedSurah.number, selectedSurah.name, ayah.number)}
+                        className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 rounded-lg text-[10px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50/50 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
+                        <span>تفسير مفصل بالذكاء الاصطناعي</span>
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Navigation Arrows */}
-                  <button
-                    type="button"
-                    onClick={() => setMushafPage(p => Math.max(1, p - 1))}
-                    disabled={mushafPage <= 1}
-                    className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-30 cursor-pointer"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMushafPage(p => Math.min(604, p + 1))}
-                    disabled={mushafPage >= 604}
-                    className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-30 cursor-pointer"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Mushaf Page High-Res Image Display Container */}
-              <div className="w-full flex justify-center items-center min-h-[500px] overflow-auto py-2">
-                <div 
-                  className="transition-transform duration-200 origin-top flex justify-center max-w-full"
-                  style={{ transform: `scale(${mushafZoom})` }}
-                >
-                  <img
-                    key={`mushaf-p-${mushafPage}-${imageSrcIdx}`}
-                    src={getMushafImageUrl(mushafPage)}
-                    onError={handleImageError}
-                    alt={`المصحف الشريف - صفحة ${mushafPage}`}
-                    className="max-w-full h-auto rounded-xl shadow-xl border border-[#DFD7C8] dark:border-[#1E3336] bg-white pointer-events-none select-none"
-                    style={{ maxHeight: '85vh' }}
-                  />
-                </div>
-              </div>
-
-              {/* Page Footer Navigation Bar */}
-              <div className="flex items-center justify-between pt-3 border-t border-[#E8E2D5] dark:border-[#132326] text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMushafPage(p => Math.max(1, p - 1))}
-                  disabled={mushafPage <= 1}
-                  className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 cursor-pointer disabled:opacity-40"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>الصفحة السابقة ({mushafPage > 1 ? mushafPage - 1 : 1})</span>
-                </button>
-
-                <span className="font-mono font-bold text-slate-400">
-                  صفحة {mushafPage} / 604
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => setMushafPage(p => Math.min(604, p + 1))}
-                  disabled={mushafPage >= 604}
-                  className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 cursor-pointer disabled:opacity-40"
-                >
-                  <span>الصفحة التالية ({mushafPage < 604 ? mushafPage + 1 : 604})</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-
-            </div>
-          ) : (
-            /* B. Interactive Uthmani Text View */
-            <div className="space-y-6">
-              {isLoadingSurahText && (
-                <div className="p-8 text-center bg-emerald-500/5 border border-emerald-500/20 rounded-2xl space-y-3">
-                  <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
-                  <p className="text-sm font-bold text-emerald-950 dark:text-emerald-300 font-kufi">
+                ))
+              ) : !isLoadingSurahText && (
+                <div className="py-6 space-y-3">
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                     جاري تحميل النص العثماني والآيات لـ سورة {selectedSurah.name}...
                   </p>
                 </div>
               )}
-
-              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100/40 dark:border-slate-850 rounded-2xl space-y-6 text-center">
-                
-                {selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
-                  <p className={`text-2xl ${activeFontClass} text-slate-800 dark:text-slate-100 py-2 border-b border-slate-100/5 drop-shadow-xs`}>
-                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                  </p>
-                )}
-
-                {selectedSurah.ayahs && selectedSurah.ayahs.length > 0 ? (
-                  selectedSurah.ayahs.map((ayah) => (
-                    <div
-                      key={ayah.number}
-                      className="py-4 border-b border-slate-100/5 last:border-none space-y-3 group text-center"
-                    >
-                      <p
-                        className={`text-slate-900 dark:text-slate-100 leading-loose tracking-wide ${activeFontClass} text-center transition-all duration-200 hover:text-emerald-700 dark:hover:text-emerald-400`}
-                        style={{ fontSize: `${fontSize}px` }}
-                      >
-                        {ayah.text}{' '}
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-emerald-600/30 text-xs font-mono font-bold text-emerald-800 dark:text-emerald-300 select-none mr-2 bg-emerald-50 dark:bg-emerald-950/30">
-                          {ayah.number}
-                        </span>
-                      </p>
-
-                      {ayah.translation && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 italic max-w-2xl mx-auto">
-                          {ayah.translation}
-                        </p>
-                      )}
-
-                      <div className="flex justify-center gap-2 pt-2">
-                        <button
-                          id={`ayah-tafsir-btn-${ayah.number}`}
-                          onClick={() => handleFetchAyahTafsir(selectedSurah.number, selectedSurah.name, ayah.number)}
-                          className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-slate-800 rounded-lg text-[10px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50/50 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" />
-                          <span>تفسير مفصل بالذكاء الاصطناعي</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : !isLoadingSurahText && (
-                  <div className="py-6 space-y-3">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                      يمكنك أيضاً التبديل إلى "المصحف المصور" بال الأعلى لقراءة صفحات سورة {selectedSurah.name} مباشرة
-                    </p>
-                  </div>
-                )}
-              </div>
             </div>
-          )}
+          </div>
 
         </div>
       )}

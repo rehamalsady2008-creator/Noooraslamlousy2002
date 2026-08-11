@@ -255,14 +255,45 @@ export default function AzkarSection({ soundEnabled, isEn = false }: AzkarSectio
     setPlayingZekrId(item.id);
     setAutoPlayIndex(indexInCat);
 
-    const url = getAudioUrlForItem(item, selectedReciter);
-    const audio = new Audio(url);
+    const primaryUrl = getAudioUrlForItem(item, selectedReciter);
+    const fallbackUrl = 'https://everyayah.com/data/Alafasy_128kbps/002255.mp3';
+
+    const audio = new Audio(primaryUrl);
     audio.playbackRate = speechRate;
     audioRef.current = audio;
 
+    const tryFallback = () => {
+      console.warn('Azkar audio error, trying fallback...');
+      const fallbackAudio = new Audio(fallbackUrl);
+      fallbackAudio.playbackRate = speechRate;
+      audioRef.current = fallbackAudio;
+      fallbackAudio.play().catch(e => console.error('Azkar fallback failed:', e));
+      fallbackAudio.onended = () => {
+        setPlayingZekrId(null);
+        if (isAutoPlayRef.current) {
+          const catItems = activeCategoryRef.current?.items || [];
+          const nextIdx = indexInCat + 1;
+          if (nextIdx < catItems.length) {
+            setAutoPlayIndex(nextIdx);
+            setTimeout(() => {
+              playRealAudioZekr(catItems[nextIdx], nextIdx);
+            }, 600);
+          } else {
+            setIsAutoPlayAll(false);
+            playSuccessSound();
+          }
+        }
+      };
+    };
+
     audio.play().catch(err => {
       console.warn('Playback error:', err);
+      tryFallback();
     });
+
+    audio.onerror = () => {
+      tryFallback();
+    };
 
     audio.onended = () => {
       setPlayingZekrId(null);

@@ -279,12 +279,32 @@ export default function VerseOfTheDay({ settings }: VerseOfTheDayProps) {
     const displayDedication = dedication.length > 80 ? dedication.substring(0, 77) + '...' : dedication;
     ctx.fillText(displayDedication, paddingInner + 40, h - paddingInner - 30);
 
-    // Trigger browser download
+    // Trigger browser download or native mobile share sheet for saving to photos
     const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `noor_al_islam_verse_${activeVerse.surah.replace(/\s+/g, '_')}.png`;
-    link.href = dataUrl;
-    link.click();
+
+    canvas.toBlob(async (blob) => {
+      if (blob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        const file = new File([blob], `noor_verse_${activeVerse.surah.replace(/\s+/g, '_')}.png`, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: 'آية اليوم - تطبيق نور الإسلام',
+              text: `« ${activeVerse.text} »\n${activeVerse.surah} • ${activeVerse.ref}`,
+              files: [file]
+            });
+            return;
+          } catch (err) {
+            console.log('Share canceled or fallback to download:', err);
+          }
+        }
+      }
+
+      // Fallback: standard file download
+      const link = document.createElement('a');
+      link.download = `noor_al_islam_verse_${activeVerse.surah.replace(/\s+/g, '_')}.png`;
+      link.href = dataUrl;
+      link.click();
+    }, 'image/png');
   };
 
   return (

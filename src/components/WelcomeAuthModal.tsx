@@ -27,8 +27,7 @@ interface WelcomeAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: any;
-  isGuest: boolean;
-  onLoginSuccess: (user: any, isGuest: boolean) => void;
+  onLoginSuccess: (user: any) => void;
   isEn?: boolean;
 }
 
@@ -36,11 +35,11 @@ export default function WelcomeAuthModal({
   isOpen,
   onClose,
   currentUser,
-  isGuest,
   onLoginSuccess,
   isEn = false
 }: WelcomeAuthModalProps) {
   const [activeTab, setActiveTab] = useState<'welcome' | 'email' | 'phone'>('welcome');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -51,7 +50,7 @@ export default function WelcomeAuthModal({
 
   if (!isOpen) return null;
 
-  const isLoggedInOrGuest = Boolean(currentUser || isGuest);
+  const isLoggedIn = Boolean(currentUser);
 
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
@@ -59,13 +58,12 @@ export default function WelcomeAuthModal({
     try {
       const res = await googleSignIn();
       if (res && res.user) {
-        onLoginSuccess(res.user, false);
+        onLoginSuccess(res.user);
         onClose();
       }
     } catch (err: any) {
       console.error('Google Auth Error:', err);
-      // Fallback if popup is blocked or environment error
-      setErrorMessage(isEn ? 'Google sign-in failed or closed. You can also sign in as Guest.' : 'عذراً، تعذر تسجيل الدخول عبر Google. يمكنك الاستمرار كضيف أو تجربة البريد.');
+      setErrorMessage(isEn ? 'Google sign-in failed or closed. Try quick name or email sign-in below.' : 'عذراً، تعذر تسجيل الدخول عبر Google. يمكنك إدخال اسمك للتسجيل المباشر أو استخدام البريد.');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,26 +72,31 @@ export default function WelcomeAuthModal({
   const handleAppleAuth = () => {
     setIsSubmitting(true);
     setTimeout(() => {
-      // Simulate Apple ID login
       const appleUser = {
         uid: 'apple_' + Date.now(),
         displayName: 'مستخدم Apple ID',
         email: 'user@apple.com'
       };
-      onLoginSuccess(appleUser, false);
+      onLoginSuccess(appleUser);
       setIsSubmitting(false);
       onClose();
     }, 800);
   };
 
-  const handleGuestEntry = () => {
-    const guestUser = {
-      uid: 'guest_' + Date.now(),
-      displayName: isEn ? 'Guest User' : 'ضيف كريم',
-      email: null
-    };
-    onLoginSuccess(guestUser, true);
-    onClose();
+  const handleQuickNameRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nameToUse = fullName.trim() || (isEn ? 'Noor User' : 'مستخدم نور الإسلام');
+    setIsSubmitting(true);
+    setTimeout(() => {
+      const newUser = {
+        uid: 'user_' + Date.now(),
+        displayName: nameToUse,
+        email: `${nameToUse.replace(/\s+/g, '').toLowerCase()}@noor-app.local`
+      };
+      onLoginSuccess(newUser);
+      setIsSubmitting(false);
+      onClose();
+    }, 400);
   };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -106,7 +109,7 @@ export default function WelcomeAuthModal({
         displayName: email.split('@')[0] || 'مستخدم',
         email: email
       };
-      onLoginSuccess(mailUser, false);
+      onLoginSuccess(mailUser);
       setIsSubmitting(false);
       onClose();
     }, 600);
@@ -129,7 +132,7 @@ export default function WelcomeAuthModal({
           displayName: `مستخدم (${phone.slice(-4)})`,
           email: null
         };
-        onLoginSuccess(phoneUser, false);
+        onLoginSuccess(phoneUser);
         setIsSubmitting(false);
         onClose();
       }, 600);
@@ -151,8 +154,8 @@ export default function WelcomeAuthModal({
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:12px_12px] pointer-events-none" />
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 blur-2xl rounded-full"></div>
 
-            {/* Close button (Only available when user is already logged in or guest) */}
-            {isLoggedInOrGuest && (
+            {/* Close button (Only available when user is already logged in) */}
+            {isLoggedIn && (
               <button
                 onClick={onClose}
                 className="absolute top-4 left-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
@@ -176,10 +179,10 @@ export default function WelcomeAuthModal({
 
             <div className="space-y-1">
               <h2 className="text-xl sm:text-2xl font-black font-kufi text-amber-300">
-                {isEn ? "Welcome to Noor Al-Islam" : "مرحباً بكم في تطبيق نور الإسلام"}
+                {isEn ? "Sign In to Noor Al-Islam" : "تسجيل الدخول - تطبيق نور الإسلام"}
               </h2>
               <p className="text-xs sm:text-sm text-emerald-100/90 font-sans">
-                {isEn ? "Your tranquil Islamic companion for prayer times, Quran, and Dhikr" : "رفيقك الروحي الشامل لمواقيت الصلاة، القرآن الكريم، والأذكار في كل مكان"}
+                {isEn ? "Mandatory Sign-In to save your Quran khatma, dhikr logs & prayer settings" : "تسجيل الدخول إجباري لحفظ ختماتك وأذكارك وإعدادات الأذان الخاصة بك"}
               </p>
             </div>
           </div>
@@ -195,9 +198,39 @@ export default function WelcomeAuthModal({
 
             {/* Quick Auth Tabs */}
             {activeTab === 'welcome' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 
-                {/* 1. Google Auth */}
+                {/* 1. Quick Instant Account Name Registration */}
+                <form onSubmit={handleQuickNameRegister} className="p-4 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-900 dark:text-emerald-300">
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    <span>{isEn ? "Instant Quick Account Registration" : "إنشاء حساب وتسجيل الدخول السريع باسمك"}</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder={isEn ? "Enter your name (e.g., Ahmed)..." : "أدخل اسمك الكريم هنا (مثال: أحمد المحمد)..."}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>{isEn ? "Register Account & Enter App" : "تسجيل الدخول والتفعيل المباشر للتطبيق 🚀"}</span>
+                  </button>
+                </form>
+
+                <div className="relative my-2 text-center">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800"></div></div>
+                  <span className="relative bg-white dark:bg-[#0A1416] px-3 text-[11px] font-bold text-slate-400">
+                    {isEn ? "OR SIGN IN WITH" : "أو سجل الدخول بواسطة حساباتك"}
+                  </span>
+                </div>
+
+                {/* 2. Google Auth */}
                 <button
                   type="button"
                   onClick={handleGoogleAuth}
@@ -213,7 +246,7 @@ export default function WelcomeAuthModal({
                   <span>{isEn ? "Sign in with Google" : "تسجيل الدخول عبر حساب Google"}</span>
                 </button>
 
-                {/* 2. Apple Auth */}
+                {/* 3. Apple Auth */}
                 <button
                   type="button"
                   onClick={handleAppleAuth}
@@ -224,7 +257,7 @@ export default function WelcomeAuthModal({
                   <span>{isEn ? "Sign in with Apple (App Store)" : "تسجيل الدخول عبر Apple ID / App Store"}</span>
                 </button>
 
-                {/* 3. Email & Phone Switch Buttons */}
+                {/* 4. Email & Phone Switch Buttons */}
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
@@ -244,23 +277,6 @@ export default function WelcomeAuthModal({
                     <span>{isEn ? "Phone Sign In" : "رقم الجوال"}</span>
                   </button>
                 </div>
-
-                <div className="relative my-4 text-center">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800"></div></div>
-                  <span className="relative bg-white dark:bg-[#0A1416] px-3 text-[11px] font-bold text-slate-400">
-                    {isEn ? "OR" : "أو الدخول المباشر السريع"}
-                  </span>
-                </div>
-
-                {/* 4. Guest Entry Button */}
-                <button
-                  type="button"
-                  onClick={handleGuestEntry}
-                  className="w-full p-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm sm:text-base rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer font-kufi active:scale-[0.98]"
-                >
-                  <UserX className="w-5 h-5" />
-                  <span>{isEn ? "Continue as Guest (No Account Required)" : "الدخول للتطبيق كضيف كلياً (بدون تسجيل دخول)"}</span>
-                </button>
 
               </div>
             )}

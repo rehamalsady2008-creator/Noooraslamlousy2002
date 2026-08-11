@@ -16,7 +16,7 @@ export interface AppSettings {
   azkarReminder: boolean;
   soundEnabled: boolean;
   customAdhanSound: string; // 'default' or custom tone
-  selectedReciter?: 'afasy' | 'abdulsamad' | 'sudais' | 'muaiqly';
+  selectedReciter?: string;
   appName?: string;
   dedicationText?: string;
   developerName?: string;
