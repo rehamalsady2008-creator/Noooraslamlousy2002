@@ -21,11 +21,11 @@ jobs:
       - name: Clean & Install Dependencies
         run: |
           rm -rf node_modules package-lock.json
-          npm install
-          npm rebuild
+          npm install --include=optional
 
-      - name: Fix Tailwind Native Binding for macOS
-        run: npm install @tailwindcss/oxide-darwin-arm64 --save-optional || true
+      - name: Fix Tailwind Native Bindings
+        run: |
+          npm install @tailwindcss/oxide-darwin-arm64 @tailwindcss/oxide-darwin-x64 --save-optional --no-save || true
 
       - name: Build Web App
         run: npm run build
